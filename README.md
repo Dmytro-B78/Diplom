@@ -1,6 +1,9 @@
 # NT-Tech Trading Bot — Дипломный проект
 ## Автоматизация тестирования Python-приложений
 
+[![Tests](https://github.com/Dmytro-B78/Diplom/actions/workflows/tests.yml/badge.svg)](https://github.com/Dmytro-B78/Diplom/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/Dmytro-B78/Diplom/branch/main/graph/badge.svg)](https://codecov.io/gh/Dmytro-B78/Diplom)
+
 **Объект исследования:** спотовый торговый бот NT-Tech (LiveEngine 5.8)  
 **Биржа:** Binance Spot API  
 **Стек тестирования:** pytest, pytest-mock, pytest-cov, GitHub Actions
@@ -45,5 +48,7 @@ pytest tests/integration/ -v
 
 | Баг | Компонент | Где нашли | Новый тест |
 |-----|-----------|-----------|------------|
-| min_stop_pct floor (TRXUSDT ~71% notional) | intrabar_stops.py | Live trading | `tests/unit/test_intrabar_stops.py` |
+| min_stop_pct floor (TRXUSDT ~71% notional) | risk_guard.py | Live trading | `tests/unit/test_risk_guard.py` |
 | pnl_pct использовал trigger вместо fill price | exit_intelligence.py | Live trading v5.7 | `tests/unit/test_exit_intelligence.py` |
+| ABS_STOP cooldown BUG-3 | entry_engine.py | Live trading | `tests/unit/test_entry_engine.py` |
+```
