@@ -151,7 +151,7 @@ C:\TradingBots\Diplom\
 ---
 
 ### ФАЗА 3 — Расширение покрытия
-- [ ] Coverage badge в README
+- [x] Coverage badge в README
 - [ ] Параметризованные тесты (pytest.mark.parametrize) для stage1
 - [ ] Mock WebSocket для live_loop.py
 - [ ] Граничный случай: network timeout
@@ -194,7 +194,7 @@ C:\TradingBots\Diplom\
 | Passed | 93/93 (100%) |
 | Coverage (stubs) | 93% |
 | Время выполнения | ~0.07s (local) / 22s (CI) |
-| CI/CD | GitHub Actions ✅ Status: Success |
+| | CI/CD | GitHub Actions ✅ passing + Codecov 84% |
 | Репозиторий | https://github.com/Dmytro-B78/Diplom |
 | Тестов в NT/tests | 130 |
 | Компонентов без тестов в NT | 3 (exit_intelligence, stage1, entry_engine) |
