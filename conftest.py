@@ -2,43 +2,39 @@
 conftest.py — общие фикстуры для всех тестов дипломного проекта.
 Фикстуры доступны автоматически во всех test_*.py файлах.
 """
+import sys
+import os
 import pytest
 from decimal import Decimal
 
+# ─── NT-Tech bot path (direct import support) ────────────────────────────────
+_NT_PATH = r"C:\TradingBots\NT"
+if os.path.isdir(_NT_PATH) and _NT_PATH not in sys.path:
+    sys.path.insert(0, _NT_PATH)
 
 # ─── Фикстуры: рыночные данные ───────────────────────────────────────────────
-
 @pytest.fixture
 def normal_market():
-    """Стандартные рыночные условия — базовый сценарий."""
     return {
         "symbol": "BTCUSDT",
         "price": Decimal("65000.00"),
-        "atr": Decimal("1200.00"),       # ~1.85% от цены — нормальный ATR
+        "atr": Decimal("1200.00"),
         "balance": Decimal("1000.00"),
         "side": "BUY",
     }
-
 
 @pytest.fixture
 def low_atr_market():
-    """
-    Low-ATR рынок — воспроизводит реальный баг с TRXUSDT.
-    ATR настолько мал, что stop_pct уходил в ~71% от notional.
-    Кейс для главы 'что тесты пропустили'.
-    """
     return {
         "symbol": "TRXUSDT",
         "price": Decimal("0.1250"),
-        "atr": Decimal("0.0003"),        # 0.24% — экстремально малый ATR
+        "atr": Decimal("0.0003"),
         "balance": Decimal("1000.00"),
         "side": "BUY",
     }
 
-
 @pytest.fixture
 def zero_balance_market():
-    """Нулевой баланс — граничный случай."""
     return {
         "symbol": "ETHUSDT",
         "price": Decimal("3200.00"),
@@ -47,10 +43,8 @@ def zero_balance_market():
         "side": "BUY",
     }
 
-
 @pytest.fixture
 def sell_market():
-    """SHORT/SELL позиция."""
     return {
         "symbol": "SOLUSDT",
         "price": Decimal("180.00"),
@@ -59,12 +53,9 @@ def sell_market():
         "side": "SELL",
     }
 
-
 # ─── Фикстуры: ответы Binance API ────────────────────────────────────────────
-
 @pytest.fixture
 def mock_binance_order_response():
-    """Успешный ответ Binance на размещение ордера."""
     return {
         "symbol": "BTCUSDT",
         "orderId": 123456789,
@@ -84,20 +75,15 @@ def mock_binance_order_response():
         ],
     }
 
-
 @pytest.fixture
 def mock_binance_error_response():
-    """Ответ Binance при сетевой ошибке / недостатке баланса."""
     return {
         "code": -2010,
         "msg": "Account has insufficient balance for requested action.",
     }
 
-
 @pytest.fixture
 def mock_binance_klines():
-    """Минимальный набор свечей для тестов стратегии."""
-    # Формат: [open_time, open, high, low, close, volume, ...]
     return [
         [1700000000000, "64000", "65500", "63800", "65000", "100.5"],
         [1700000060000, "65000", "65800", "64900", "65300", "95.2"],
