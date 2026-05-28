@@ -7,10 +7,10 @@
 
 ## СТАТУС ПРОЕКТА
 
-**Фаза:** 1 — Фундамент готов, расширен реальными компонентами
+**Фаза:** 2 — GitHub CI запущен, реальный код подключён
 **Тесты:** 93/93 passed (локально Windows + Linux CI)
 **Coverage:** 93% (src/stubs)
-**Следующий шаг:** Фаза 2 — подключение реального кода бота + GitHub CI
+**Следующий шаг:** Фаза 3 — расширение покрытия, coverage badge, параметризация
 
 ---
 
@@ -24,6 +24,7 @@
 | Бот (production) | VPS Contabo `/home/ubuntu/NT/` |
 | Сервис | `systemd nttech.service` |
 | Репозиторий бота | https://github.com/Dmytro-B78/NT (private) |
+| Репозиторий диплома | https://github.com/Dmytro-B78/Diplom (public) |
 | Python (тесты) | pytest 8.3.5, pytest-mock 3.14.0, pytest-cov 6.1.0 |
 
 ---
@@ -35,11 +36,11 @@
 | Файл | Назначение | NT/tests (130) | Diplom/tests |
 |------|-----------|----------------|--------------|
 | `live_engine.py` | Основной движок, управление позициями | Нет | Нет |
-| `risk_guard.py` | Риск-менеджмент, kill-switch | 23 теста | Stub (расширение) |
+| `risk_guard.py` | Риск-менеджмент, kill-switch | 23 теста | 25 тестов (реальный интерфейс) |
 | `live_loop.py` | Event loop, WebSocket candles | Нет | Нет |
 | `stage1.py` | Entry gate (4H alignment) | **Нет** | **23 теста (новое!)** |
 | `entry_engine.py` | Логика входа | **Нет** | **15 тестов (новое!)** |
-| `intrabar_stops.py` | Stop-loss логика | 21 тест | Stub (расширение) |
+| `intrabar_stops.py` | Stop-loss логика | 21 тест | 10 тестов (реальный интерфейс) |
 | `exit_intelligence.py` | Интеллектуальный выход | **НОЛЬ** | **17 тестов (ключевой вклад!)** |
 | `trail_engine.py` | Trailing stop | 27 тестов | Нет (покрыто в NT) |
 | `scripts/run_bt.py` | Backtest | Нет | Нет |
@@ -99,26 +100,26 @@ C:\TradingBots\Diplom\
 ├── DIPLOMA_KNOWLEDGE.md
 │
 ├── src/stubs/
-│   ├── risk_guard_stub.py          ← RiskGuard 4.1 (класс)
-│   ├── intrabar_stops_stub.py      ← abs/hwm/atr/ema stops
-│   ├── exit_intelligence_stub.py   ← evaluate_exits + state
-│   ├── stage1_stub.py              ← stage1_check (pure fn)
-│   └── entry_engine_stub.py        ← compute_entry_signal
+│   ├── risk_guard_stub.py          ← RiskGuard 4.1 (класс, реальный интерфейс)
+│   ├── intrabar_stops_stub.py      ← abs/hwm/atr/ema stops (реальный интерфейс)
+│   ├── exit_intelligence_stub.py   ← evaluate_exits + state (реальный интерфейс)
+│   ├── stage1_stub.py              ← stage1_check (pure fn, реальный интерфейс)
+│   └── entry_engine_stub.py        ← compute_entry_signal (реальный интерфейс)
 │
 ├── tests/
 │   ├── unit/
 │   │   ├── test_risk_guard.py          ← 25 тестов
 │   │   ├── test_intrabar_stops.py      ← 10 тестов
 │   │   ├── test_exit_intelligence.py   ← 17 тестов (ключевой!)
-│   │   ├── test_stage1.py              ← 23 теста  (новое!)
-│   │   └── test_entry_engine.py        ← 15 тестов (новое!)
+│   │   ├── test_stage1.py              ← 23 теста
+│   │   └── test_entry_engine.py        ← 15 тестов
 │   ├── integration/
 │   │   └── test_mock_binance_api.py    ← 3 теста
 │   └── mocks/
 │
 ├── docs/
 ├── reports/
-└── .github/workflows/tests.yml
+└── .github/workflows/tests.yml         ← CI/CD GitHub Actions ✅
 ```
 
 ---
@@ -139,20 +140,23 @@ C:\TradingBots\Diplom\
 
 ---
 
-### ФАЗА 2 — GitHub CI + подключение реального кода
-- [ ] Создать репозиторий Diplom на GitHub
-- [ ] Сделать первый push и проверить GitHub Actions
-- [ ] Добавить coverage badge в README
-- [ ] Изучить сигнатуры в реальных файлах NT и адаптировать тесты
-- [ ] Добавить `C:\TradingBots\NT\` в sys.path для прямого импорта
+### ФАЗА 2 — GitHub CI + реальный код ✅ ЗАВЕРШЕНА (2026-05-28)
+- [x] Создать репозиторий Diplom на GitHub
+- [x] Сделать первый push и проверить GitHub Actions
+- [x] CI/CD: Status Success, 22s, ubuntu-latest
+- [x] Изучить реальные файлы NT (risk_guard, intrabar_stops, exit_intelligence, stage1, entry_engine)
+- [x] Адаптировать stubs и тесты под реальные интерфейсы
+- [x] 93/93 тестов прошло на GitHub Actions
 
 ---
 
 ### ФАЗА 3 — Расширение покрытия
+- [ ] Coverage badge в README
 - [ ] Параметризованные тесты (pytest.mark.parametrize) для stage1
 - [ ] Mock WebSocket для live_loop.py
 - [ ] Граничный случай: network timeout
 - [ ] HTML coverage отчёт в reports/
+- [ ] Добавить `C:\TradingBots\NT\` в sys.path для прямого импорта
 
 ---
 
@@ -189,9 +193,12 @@ C:\TradingBots\Diplom\
 | Integration-тестов | 3 |
 | Passed | 93/93 (100%) |
 | Coverage (stubs) | 93% |
-| Время выполнения | ~0.07s |
+| Время выполнения | ~0.07s (local) / 22s (CI) |
+| CI/CD | GitHub Actions ✅ Status: Success |
+| Репозиторий | https://github.com/Dmytro-B78/Diplom |
 | Тестов в NT/tests | 130 |
 | Компонентов без тестов в NT | 3 (exit_intelligence, stage1, entry_engine) |
+| Реальных файлов NT подключено | 5 |
 
 ---
 
@@ -215,4 +222,7 @@ python -m pytest --cov=src --cov-report=html:reports/htmlcov
 
 # Один тест
 python -m pytest tests/unit/test_exit_intelligence.py::TestExitPriceFix::test_exit_price_is_close_not_trigger -v
+
+# Git
+git add . && git commit -m "feat: ..." && git push
 ```
