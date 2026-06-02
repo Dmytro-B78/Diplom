@@ -1,66 +1,147 @@
-"""
-Юнит-тесты для risk_guard.py
-Тестируем: расчёт размера позиции, kill-switch, лимиты риска.
-Все тесты изолированы — Binance API не вызывается.
-"""
 import pytest
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src/stubs'))
-from decimal import Decimal
+from bot_ai.risk.risk_guard import RiskGuard
 
-pytestmark = pytest.mark.unit
+def make_rg(**kw):
+    defaults = dict(
+        base_risk_pct=0.01, max_risk_pct=0.01,
+        daily_loss_limit=0.02, weekly_loss_limit=0.05,
+        max_open_positions=4,
+    )
+    defaults.update(kw)
+    return RiskGuard(**defaults)
 
+def open_signal(sym):
+    return {"signal": "OPEN_LONG", "symbol": sym}
 
-class TestPositionSizing:
+def close_signal(sym):
+    return {"signal": "CLOSE_LONG", "symbol": sym}
 
-    def test_normal_position_size(self, normal_market):
-        from risk_guard_stub import calculate_position_size
-        qty = calculate_position_size(
-            balance=normal_market["balance"],
-            price=normal_market["price"],
-            atr=normal_market["atr"],
-            risk_pct=0.01,
-        )
-        assert qty > 0
+class TestInit:
+    def test_daily_pnl_zero(self):
+        assert make_rg()._daily_pnl == pytest.approx(0.0)
+    def test_weekly_pnl_zero(self):
+        assert make_rg()._weekly_pnl == pytest.approx(0.0)
+    def test_kill_switch_off(self):
+        assert make_rg()._kill_switch is False
+    def test_no_positions_at_start(self):
+        assert make_rg()._positions == {}
 
-    def test_zero_balance_returns_zero(self, zero_balance_market):
-        from risk_guard_stub import calculate_position_size
-        qty = calculate_position_size(
-            balance=zero_balance_market["balance"],
-            price=zero_balance_market["price"],
-            atr=zero_balance_market["atr"],
-            risk_pct=0.01,
-        )
-        assert qty == 0
+class TestOpenLong:
+    def test_open_long_accepted(self):
+        rg = make_rg()
+        r = rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT")
+        assert r is not None and r["action"] == "OPEN_LONG"
+    def test_open_long_registers_position(self):
+        rg = make_rg()
+        rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT")
+        assert "SOLUSDT" in rg._positions
+    def test_open_long_duplicate_blocked(self):
+        rg = make_rg()
+        rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT")
+        assert rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT") is None
+    def test_open_long_max_positions_blocked(self):
+        rg = make_rg(max_open_positions=2)
+        rg.process_meta_signal(open_signal("SYM1USDT"), "SYM1USDT")
+        rg.process_meta_signal(open_signal("SYM2USDT"), "SYM2USDT")
+        assert rg.process_meta_signal(open_signal("SYM3USDT"), "SYM3USDT") is None
+    def test_none_signal_returns_none(self):
+        assert make_rg().process_meta_signal(None) is None
+    def test_two_different_symbols_accepted(self):
+        rg = make_rg(max_open_positions=4)
+        r1 = rg.process_meta_signal(open_signal("BTCUSDT"), "BTCUSDT")
+        r2 = rg.process_meta_signal(open_signal("ETHUSDT"), "ETHUSDT")
+        assert r1 is not None and r2 is not None
 
-    def test_risk_pct_above_max_is_capped(self, normal_market):
-        from risk_guard_stub import calculate_position_size
-        qty_normal = calculate_position_size(
-            balance=normal_market["balance"],
-            price=normal_market["price"],
-            atr=normal_market["atr"],
-            risk_pct=0.01,
-        )
-        qty_capped = calculate_position_size(
-            balance=normal_market["balance"],
-            price=normal_market["price"],
-            atr=normal_market["atr"],
-            risk_pct=0.99,
-        )
-        assert qty_capped <= qty_normal * 10
-
+class TestCloseLong:
+    def test_close_long_accepted(self):
+        rg = make_rg()
+        rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT")
+        r = rg.process_meta_signal(close_signal("SOLUSDT"), "SOLUSDT")
+        assert r is not None and r["action"] == "CLOSE_LONG"
+    def test_close_long_removes_position(self):
+        rg = make_rg()
+        rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT")
+        rg.process_meta_signal(close_signal("SOLUSDT"), "SOLUSDT")
+        assert "SOLUSDT" not in rg._positions
+    def test_close_long_not_in_position_returns_none(self):
+        rg = make_rg()
+        assert rg.process_meta_signal(close_signal("SOLUSDT"), "SOLUSDT") is None
+    def test_reopen_after_close(self):
+        rg = make_rg()
+        rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT")
+        rg.process_meta_signal(close_signal("SOLUSDT"), "SOLUSDT")
+        r = rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT")
+        assert r is not None
 
 class TestKillSwitch:
+    def test_kill_switch_daily_limit(self):
+        rg = make_rg(daily_loss_limit=0.02)
+        rg.record_trade_result(-0.021)
+        assert rg._kill_switch is True
+    def test_kill_switch_blocks_open(self):
+        rg = make_rg(daily_loss_limit=0.02)
+        rg.record_trade_result(-0.021)
+        assert rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT") is None
+    def test_kill_switch_weekly_limit(self):
+        rg = make_rg(weekly_loss_limit=0.05)
+        rg.record_trade_result(-0.051)
+        assert rg._kill_switch is True
+    def test_reset_daily_clears_pnl(self):
+        rg = make_rg()
+        rg.record_trade_result(-0.01)
+        rg.reset_daily()
+        assert rg._daily_pnl == pytest.approx(0.0)
+    def test_reset_weekly_clears_kill_switch(self):
+        rg = make_rg(weekly_loss_limit=0.05)
+        rg.record_trade_result(-0.051)
+        rg.reset_weekly()
+        assert rg._kill_switch is False
+    def test_kill_switch_not_triggered_below_limit(self):
+        rg = make_rg(daily_loss_limit=0.02)
+        rg.record_trade_result(-0.019)
+        assert rg._kill_switch is False
+    def test_multiple_losses_accumulate(self):
+        rg = make_rg(daily_loss_limit=0.02)
+        rg.record_trade_result(-0.011)
+        rg.record_trade_result(-0.011)
+        assert rg._kill_switch is True
 
-    def test_kill_switch_triggers_on_max_loss(self):
-        from risk_guard_stub import should_kill_switch
-        assert should_kill_switch(daily_pnl=-0.15, max_daily_loss=-0.10) is True
+class TestPositionSize:
+    def test_position_size_positive(self):
+        assert make_rg().compute_position_size(1.0, 0.91, 1000.0, "normal") > 0
+    def test_position_size_zero_distance(self):
+        assert make_rg().compute_position_size(1.0, 1.0, 1000.0, "normal") == pytest.approx(0.0)
+    def test_extreme_regime_smaller(self):
+        rg = make_rg()
+        sz_normal  = rg.compute_position_size(1.0, 0.91, 1000.0, "normal")
+        sz_extreme = rg.compute_position_size(1.0, 0.91, 1000.0, "extreme")
+        assert sz_extreme < sz_normal
+    def test_larger_balance_larger_size(self):
+        rg = make_rg()
+        sz_small = rg.compute_position_size(1.0, 0.91, 500.0, "normal")
+        sz_large = rg.compute_position_size(1.0, 0.91, 2000.0, "normal")
+        assert sz_large > sz_small
 
-    def test_kill_switch_inactive_on_profit(self):
-        from risk_guard_stub import should_kill_switch
-        assert should_kill_switch(daily_pnl=0.05, max_daily_loss=-0.10) is False
+class TestForceClose:
+    def test_force_close_removes_position(self):
+        rg = make_rg()
+        rg.process_meta_signal(open_signal("SOLUSDT"), "SOLUSDT")
+        rg.force_close("SOLUSDT")
+        assert "SOLUSDT" not in rg._positions
+    def test_force_close_unknown_no_error(self):
+        make_rg().force_close("UNKNOWN")
 
-    def test_kill_switch_at_exact_boundary(self):
-        from risk_guard_stub import should_kill_switch
-        result = should_kill_switch(daily_pnl=-0.10, max_daily_loss=-0.10)
-        assert isinstance(result, bool)
+class TestStatus:
+    def test_status_keys(self):
+        s = make_rg().status()
+        assert "kill_switch" in s
+        assert "position_count" in s
+        assert "daily_pnl" in s
+    def test_status_position_count(self):
+        rg = make_rg()
+        rg.process_meta_signal(open_signal("BTCUSDT"), "BTCUSDT")
+        assert rg.status()["position_count"] == 1
+    def test_status_kill_switch_reflects_state(self):
+        rg = make_rg(daily_loss_limit=0.02)
+        rg.record_trade_result(-0.021)
+        assert rg.status()["kill_switch"] is True
