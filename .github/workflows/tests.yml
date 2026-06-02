@@ -1,27 +1,44 @@
 name: Diploma Tests CI
-
 on:
   push:
     branches: [ main, master, develop ]
   pull_request:
     branches: [ main, master ]
-
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4.2.2
+
+    - name: Clone NT bot (private)
+      uses: actions/checkout@v4.2.2
+      with:
+        repository: Dmytro-B78/NT
+        ssh-key: ${{ secrets.NT_DEPLOY_KEY }}
+        path: NT
+
     - uses: actions/setup-python@v5.3.0
       with:
         python-version: '3.11'
+
     - name: Install dependencies
       run: pip install -r requirements.txt
+
     - name: Run unit tests
       run: pytest tests/unit/ -v --tb=short
+      env:
+        PYTHONPATH: ${{ github.workspace }}/NT
+
     - name: Run integration tests
       run: pytest tests/integration/ -v --tb=short
+      env:
+        PYTHONPATH: ${{ github.workspace }}/NT
+
     - name: Coverage report
       run: pytest --cov=src --cov-report=xml --cov-report=term-missing
+      env:
+        PYTHONPATH: ${{ github.workspace }}/NT
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
