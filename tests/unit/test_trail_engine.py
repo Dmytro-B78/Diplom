@@ -133,3 +133,24 @@ class TestResetTrailState:
     def test_reset_clears_latch(self):
         s = MockStrat(); s.trail_state = TrailState(); s.trail_state.latch_active = True
         reset_trail_state(s); assert s.trail_state.latch_active is False
+
+class TestComputeAtrMult:
+    def test_extreme_regime_widens_trail_more_than_high(self):
+        from bot_ai.strategy.meta.trail_engine import _compute_atr_mult
+        extreme_mult = _compute_atr_mult(phase=1, latch_active=False, atr_regime="extreme")
+        high_mult = _compute_atr_mult(phase=1, latch_active=False, atr_regime="high")
+        assert extreme_mult > high_mult
+
+    def test_low_regime_narrows_trail_below_normal(self):
+        from bot_ai.strategy.meta.trail_engine import _compute_atr_mult, PHASE_1_MULT
+        low_mult = _compute_atr_mult(phase=1, latch_active=False, atr_regime="low")
+        assert low_mult < PHASE_1_MULT
+
+    def test_extreme_regime_widens_trail_above_normal(self):
+        from bot_ai.strategy.meta.trail_engine import _compute_atr_mult, PHASE_1_MULT
+        extreme_mult = _compute_atr_mult(phase=1, latch_active=False, atr_regime="extreme")
+        assert extreme_mult > PHASE_1_MULT
+
+
+
+
